@@ -2,39 +2,34 @@ import numpy as np
 import pandas as pd 
 import re 
 import warnings 
+from typing import Iterable
 
-# warning class  
-class DuplicatedValueWarning(UserWarning): 
-    """use for category of warning type"""
-    pass 
-
-
-#%% Feature Engineering functions
-def create_lag(df, target, lag=[1], droplagna=True):
+# Feature Engineering functions
+def create_lag(df, features, lag=[1], droplagna=True):
     """create additional lagged features
 
     Args:
         df (pd.DataFrame): the input data. 
-        target (Iterable, str): the features in ``df.columns`` that you you want to create lags
-        lag (list, optional): lags that you want to create. Defaults to [1]. For example, if lag=[1,3,9], then create feature of each target with lag 1,3, and 9. 
+        features (Iterable, str): the features in ``df.columns`` that you you want to create lags
+        lag (list, optional): lags that you want to create. Defaults to [1]. For example, if lag=[1,3,9], then create feature of each features with lag 1,3, and 9. 
         droplagna (bool, optional): drop the missing records/rows due to lags. Notics that this doesn't drop all na records but only those due to shift/lags. Defaults to True.
 
     Returns:
         pd.DataFrame: new dataframe contains lags features as columns. This doesn't contain original df content.
     """
     # settup 
-    if isinstance(target, str): 
-        target = [target]
+    if isinstance(features, str): 
+        features = [features]
     if isinstance(lag, int): 
         lag = [lag]
         
     # make the shift
     resList = []
     for i in lag: 
-        res = df[target].shift(i)
+        res = df[features].shift(i)
         suffix = 'lag' if i > 0 else 'lead'
         i = i if i > 0 else -i
-        res.columns = [str(s)+'_{}{}'.format(suffix, i)  for s in target ]
+        res.columns = [str(s)+'_{}{}'.format(suffix, i)  for s in features ]
         resList.append(res)
     res = pd.concat(resList, axis=1)
     
@@ -55,64 +50,64 @@ def create_lag(df, target, lag=[1], droplagna=True):
 
     return res
 
-def create_lead(df, target, lead=[1], dropleadna=True):
+def create_lead(df, features: Iterable, lead=[1], dropleadna=True):
     """create additional leads features. This function is eqivalent to ``create_lag(...,lag=[-l for l in lead],...)``
 
     Args:
         df (pd.DataFrame): the input data. 
-        target (Iterable, str): the features in ``df.columns`` that you you want to create lags
-        lead (list, optional): leads that you want to create. Defaults to [1]. For example, if lead=[1,3,9], then create feature of each target with lead 1,3, and 9. 
+        features (Iterable, str): the features in ``df.columns`` that you you want to create lags
+        lead (list, optional): leads that you want to create. Defaults to [1]. For example, if lead=[1,3,9], then create feature of each features with lead 1,3, and 9. 
         droplagna (bool, optional): drop the missing records/rows due to lags. Notics that this doesn't drop all na records but only those due to shift/lags. Defaults to True.
 
     Returns:
         pd.DataFrame: new dataframe contains leads features as columns. This doesn't contain original df content.
     """
     lag = -np.array(lead)
-    return create_lag(df, target, lag=lag, droplagna=dropleadna)
+    return create_lag(df, features, lag=lag, droplagna=dropleadna)
 
-def add_MA(df, target, window, **kwargs):
+def add_MA(df, features, window, **kwargs):
 
-    if isinstance(target, str):
-        target = [target]
+    if isinstance(features, str):
+        features = [features]
     if isinstance(window, int):
         window = [window]
     
     resList = []
     for w in window: 
-        res = df[target].rolling(w, min_periods=1, **kwargs).mean()
-        res.columns = [str(s)+f'_ma{w}' for s in target]
+        res = df[features].rolling(w, min_periods=1, **kwargs).mean()
+        res.columns = [str(s)+f'_ma{w}' for s in features]
         resList.append(res)
     res = pd.concat(resList, axis=1)
     
     return pd.concat([df, res], axis=1), res.columns
 
-def add_EMA(df, target, alpha, adjust=True, **kwargs):
+def add_EMA(df, features, alpha, adjust=True, **kwargs):
 
-    if isinstance(target, str):
-        target = [target]
+    if isinstance(features, str):
+        features = [features]
     if isinstance(alpha, int):
         alpha = [alpha]
     
     resList = []
     for a in alpha: 
-        res = df[target].ewm(alpha=a, min_periods=1, 
+        res = df[features].ewm(alpha=a, min_periods=1, 
                              adjust=adjust, **kwargs).mean()
-        res.columns = [str(s)+'_ema{:g}'.format(a*10) for s in target]
+        res.columns = [str(s)+'_ema{:g}'.format(a*10) for s in features]
         resList.append(res)
     res = pd.concat(resList, axis=1)
     return pd.concat([df, res], axis=1), res.columns
 
-def add_MS(df, target, window, **kwargs):
+def add_MS(df, features, window, **kwargs):
 
-    if isinstance(target, str):
-        target = [target]
+    if isinstance(features, str):
+        features = [features]
     if isinstance(window, int):
         window = [window]
         
     resList = []
     for w in window: 
-        res = df[target].rolling(w, min_periods=1, **kwargs).std()
-        res.columns = [str(s)+f'_ms{w}' for s in target]
+        res = df[features].rolling(w, min_periods=1, **kwargs).std()
+        res.columns = [str(s)+f'_ms{w}' for s in features]
         # use feature mean to fill na
         res.fillna(res.mean(), inplace=True)
         resList.append(res)
@@ -132,30 +127,6 @@ def npshift(arr, num, fill_value=np.nan):
         result[:] = arr
     return result
 
-def config_parser(key: str, space: dict): 
-    """
-    extract the setting from space dict based on key pattern. 
-    Args:
-        key (str): form the regex pattern to parse and extract from space dict.
-        space (dict): the dict that will be searched. 
-
-    Returns:
-        dict: contains the setting related to key pattern, key pattern will be removed from the dict string keys.
-
-    Example: 
-        >>> space = {'RMSE__multiple_weight': 'uniform_average', 'RMSE__sample_weight': None, 
-                     'MAE__multiple_weight': 'raw_values', 'MAE__sample_weight': None, }
-        >>> config_parser('RMSE')
-        {'multiple_weight': 'uniform_average', 'sample_weight':None}
-    """
-    # define pattern 
-    prefix = f'{key}__\w+'
-    # find the keys matching the pattern required 
-    keys = re.findall(prefix, '  '.join(space.keys()))
-    # modify the keys by deleting the prefix 
-    keys_no_prefix = [k.replace(f'{key}__', '') for k in keys]
-    return dict(zip(keys_no_prefix, [space[k] for k in keys] ))
-
 def percent_change(data):
     """
     Calculate the %change between the last value and the mean of previous values.
@@ -163,7 +134,7 @@ def percent_change(data):
     Usage: df.rolling(window=20).aggregate(percent_change)
     """
     previous_values = data[:-1]
-    last_value = values[-1]
+    last_value = data[-1]
     return (last_value - np.mean(previous_values)) / np.mean(previous_values)
 
 
@@ -284,3 +255,132 @@ def recover_from_diff(prediction_diff, y, dlist):
             
 #     return res.reshape(y.shape)
 
+#%% DataMelter 
+class DataMelter(): 
+    
+    def __init__(self): 
+        pass 
+    
+    @staticmethod 
+    def _concat_back(frame: pd.DataFrame, frame2: pd.DataFrame, ):
+        assert frame2.shape[0] % frame.shape[0] == 0, "frame is not divisible by frame2 wrt nrows."
+        multiplier = int(frame2.shape[0] / frame.shape[0])
+        augmented_frame = pd.concat([frame]*multiplier, axis=0)
+        assert (augmented_frame.index == frame2.index).all(), "index of the two frames are not the same."
+        return pd.concat([augmented_frame, frame2], axis=1)
+    
+    @staticmethod
+    def melt_features(frame: pd.DataFrame, id_cols=None, input_cols=None, 
+                  input2dummy_value={}, dummy_name: str=None, value_name: str=None, ignore_index=False, concat_back=False): 
+        """
+        Unpivot a dataframe wide to long format. This function is an extension of ``pd.melt`` that provides additionally the mapper for input column names to dummy values.
+
+        :param frame: the input dataframe.
+        :type frame: pd.DataFrame
+        :param id_cols: column(s) to use as identifier variables, defaults to None
+        :type id_cols: [tuple, list, or ndarray], optional
+        :param input_cols: [Columns to unpivot. If not specified, used all columns that are not set as ``id_vars``], defaults to None
+        :type input_cols: [tuple, list, or ndarray], optional
+        :param input2dummy_value: [Mapper that convert ``input_cols`` names to dummy values under the column ``dummy_name``], defaults to {}
+        :type input2dummy_value: dict, optional
+        :param dummy_name: [Name to use for the `variable` column. If None it uses ``frame.columns.name`` or `variable`.], defaults to None
+        :type dummy_name: str, optional
+        :param value_name: [Name to use for the ‘value’ column.], defaults to None
+        :type value_name: str, optional
+        :param ignore_index: [whether to ignore index when melting the data], defaults to False.
+        :type ignore_index: bool, optional
+        :param concat_back: [whether to concat the melted features back to original dataframe], defaults to False.
+        :type concat_back: bool, optional
+        :return: [Unpivoted DataFrame.]
+        :rtype: [pd.DataFrame]
+        """
+
+        check = pd.Index(input_cols).isin(frame.columns)
+        assert check.all(), f"Cannot find columns {input_cols[~check]} in frame."
+        # prepare 
+        value_vars = input2dummy_value.values()
+        if len(value_vars) == 0: 
+            value_vars = input_cols 
+        # output 
+        res = frame.rename(
+            columns=input2dummy_value
+        ).melt(
+            id_vars=id_cols, value_vars=value_vars, 
+            var_name=dummy_name, value_name=value_name, 
+            ignore_index=ignore_index
+        )
+
+        # concat back if True 
+        if concat_back: 
+            res = DataMelter._concat_back(frame.drop(columns=input_cols), res, )
+            
+        return res 
+
+    @staticmethod
+    def melt_features_regex(frame: pd.DataFrame, features: Iterable[str], 
+        dummy_value: Iterable[str]=None, dummy_name: Iterable[str]=None, 
+        value_name: Iterable[str]=None, ignore_index=False):
+        """
+        This method is similar to ``melt_features`` but can melt different group of features via regex.
+
+        :param frame: [the input dataframe that already contains the lead features]
+        :type frame: pd.DataFrame
+        :param features: [the target featues regex list for prediction task]
+        :type features: Iterable[str].
+
+        :param targets_suffix_regex: [the suffix name regex pattern for targets_stem]
+        :type targets_suffix_regex: str, optional
+
+        :param dummy_name:
+        :type dummy_name: Iterable[str], defaults to None. 
+
+        :param value_name:
+        :type value_name: Iterable[str], defaults to None. 
+
+        :param ignore_index:
+        :type ignore_index: bool, defaults to False. 
+
+        :return: [description]
+        :rtype: [type]
+        """
+        # initial check 
+        assert not isinstance(features, str), "targets_stem should be Iterable, not str."
+        
+        if isinstance(dummy_name, str) or dummy_name is None: 
+            dummy_name = [dummy_name] * len(features)
+        else:
+            assert len(dummy_name) == len(features)
+
+        if dummy_value is None: 
+            dummy_value = features * len(features)
+        elif isinstance(dummy_value, str):
+            dummy_value = [dummy_value] * len(features)
+        else: 
+            assert len(dummy_value) == len(features)
+
+        if isinstance(value_name, str): 
+            value_name = [value_name] * len(features)
+        elif value_name is None: 
+            value_name = features
+        else:
+            assert len(value_name) == len(features)
+        
+
+        # melt targets down to long format
+        collector = []
+        for i, feature_pattern in enumerate(features): 
+            cols = frame.filter(regex=feature_pattern).columns
+            tomap = cols.str.extract(f"({dummy_value[i]})", expand=False)
+            long_df = DataMelter.melt_features(
+                frame, input_cols=cols, 
+                input2dummy_value=dict(zip(cols, tomap)), 
+                dummy_name=dummy_name[i], value_name=value_name[i]
+            )
+            collector.append(long_df)
+        
+        # prepare output 
+        output = pd.concat(collector, axis=1)
+        uniq_cols = output.columns.drop_duplicates()
+        return output , uniq_cols
+
+# %%

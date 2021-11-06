@@ -30,7 +30,9 @@ class MetricsCls:
         self._metrics_dict = value 
     
     def config_parser(self, metric): 
-        """return the dict that contains only the keys with `metric`__ pattern. """
+        """
+        return the dict that contains only the keys with ``metric__`` pattern. 
+        """
         # define pattern 
         prefix = f'{metric}__\w+'
         # find the keys matching the pattern required 
@@ -65,8 +67,8 @@ class MetricsCls:
         return sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
         
     @staticmethod
-    def RMSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=True):
-        return sklearn.metrics.mean_squared_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
+    def RMSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=False):
+        return sklearn.metrics.mean_squared_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput, squared=squared)
     
     @staticmethod
     def DS(y_true, y_pred, version='selfmade', **kwargs):
@@ -92,23 +94,25 @@ class MetricsCls:
         # define common variables
         y_true = np.array(y_true).squeeze()
         y_pred = np.array(y_pred).squeeze()
-        true_diff = np.diff(y_true)
-        pred_diff = np.diff(y_pred)
+        true_diff = np.diff(y_true, axis=0).squeeze()
+        pred_diff = np.diff(y_pred, axis=0).squeeze()
         
         # case not zero: modify true_diff and pred_diff
         if tolerance != 0:
             # get %change 
-            tmp = pd.Series(y_true).pct_change().iloc[1:]
-            true_diff[tmp.abs() < tolerance] = 0
+            tmp = pd.DataFrame(y_true).pct_change().iloc[1:,:]
+            mask = np.array(tmp.abs() < tolerance).squeeze()
+            true_diff[mask] = 0
             
-            tmp = pd.Series(y_pred).pct_change().iloc[1:]
-            pred_diff[tmp.abs() < tolerance] = 0
+            tmp = pd.DataFrame(y_pred).pct_change().iloc[1:,:]
+            mask = np.array(tmp.abs() < tolerance).squeeze()
+            pred_diff[mask] = 0
 
         # core formula
         d = (true_diff * pred_diff) > 0
         ## case of plateau for both y_true, y_pred
         d[(true_diff== 0) & (pred_diff == 0)] = 1
-        dsymm = np.round(100 * d.sum() / len(d), 2)
+        dsymm = np.round(100 * d.sum() / d.size, 2)
 
         return dsymm
     

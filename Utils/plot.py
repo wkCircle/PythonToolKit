@@ -1,3 +1,9 @@
+import matplotlib.pyplot as plt 
+import statsmodels
+import seaborn as sns 
+import numpy as np
+import pandas as pd 
+
 
 #%% plotting functions
 def adjust_bright(color, amount=1.2):
@@ -32,7 +38,6 @@ def missingval_plot(df, figsize=(20,6), show=True):
     Doesn't work for 1-dim df.
     df: pd.DataFrame 
     """
-    import seaborn as sns 
     
     # check all are bool
     if (df.dtypes != bool).any():
@@ -58,8 +63,7 @@ def plot_cv_indices(cv, X, y, ax, n_splits, lw=10):
     """
     Create a sample plot for indices of a cross-validation object.
     """
-    import numpy as np 
-    import matplotlib.pyplot as plt
+
     # Generate the training/testing visualizations for each CV split
     for ii, (tr, tt) in enumerate(cv.split(X=X, y=y)):
         # Fill in indices with the training/test groups
@@ -83,9 +87,7 @@ def plot_cv_indices(cv, X, y, ax, n_splits, lw=10):
 def corrtri_plot(df, figsize=(10,10)):
     """correlation plot of the dataframe"""
     # sns.set() #: will cause plt warning later in lag_plot
-    import numpy as np 
-    import seaborn as sns
-    
+
     c = df.corr()
     mask = np.triu(c.corr(), k=1)
     plt.figure(figsize=figsize)
@@ -96,12 +98,13 @@ def corrtri_plot(df, figsize=(10,10)):
                     square=True, mask=mask, linewidths=1, cbar=False)
     plt.show()
     
-def acpac_plot(data, figsize=(10,5)):
+def acpac_plot(data, features=[], figsize=(10,5)):
     """Autocorrelation and Partial-aurocorrelation plots."""
-    import matplotlib.pyplot as plt
     from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
     
-    for i, col in enumerate(data.columns):
+    if features == []: 
+        features = data.columns 
+    for i, col in enumerate(features):
         fig, ax = plt.subplots(1,2,figsize=figsize)
         plot_acf(data[col], lags=30, 
                  title='AC: ' + data[col].name, 
@@ -109,16 +112,14 @@ def acpac_plot(data, figsize=(10,5)):
         plot_pacf(data[col], lags=30, 
                   title='PAC: ' + data[col].name, 
                  ax=ax[1])
-        plt.show()
+    
         
 def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
     """
     model: var/vecm model (from statsmodels)
     cols: can be integer/str list.
     """
-    import pandas as pd 
-    import matplotlib.pyplot as plt
-    
+
     # set up
     if cols is not None: 
         cols = list(cols)
@@ -145,13 +146,13 @@ def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
     return ax
 
 
-def periodogram(series, division=8, figsize=(15,10)):
+# periodogram plots 
+def periodogram(series, division=8, figsize=(15,10), ax=None):
     """
     plot periodogram of the series to find most important 
     frequency/periodicity
     """
-    import numpy as np 
-    import matplotlib.pyplot as plt
+
     dt = 1
     T = len(series.index)
     t = np.arange(0, T, dt)
@@ -162,22 +163,23 @@ def periodogram(series, division=8, figsize=(15,10)):
     freq = np.arange(n) # * (1/(dt*n))
     L = np.arange(1, np.floor(n/division), dtype="int") 
     # n/4, otherwise too long of a stretch to see anything
-    
-    plt.figure(figsize=figsize)
-    plt.plot(freq[L], np.abs(PSD[L]), linewidth=2, 
+    if ax is None: 
+        _, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.plot(freq[L], np.abs(PSD[L]), linewidth=2, 
              label='Lag Importance')
-    plt.xlim(freq[L[0]], freq[L[-1]])
-    plt.legend()
-    plt.hlines(0, xmin=0, xmax=n, colors='black')
-    plt.title('Periodogram of ' + series.name)
-    plt.show()
+    ax.hlines(0, xmin=0, xmax=n, colors='black')
+    ax.set_xlim(freq[L[0]], freq[L[-1]])
+    ax.set_xlabel("Lag")
+    ax.tick_params(axis='x', labelbottom=True)     # labelbottom: make xticks everywhere
+    ax.set_title('Periodogram of ' + series.name)
+    ax.legend()
+    
+    return ax 
     
 def rfft_plot(series, ylim=(0,400), figsize=(15,10)):
     """plot real valued fourier transform to find most important 
     frequency/periodicity"""
     import tensorflow as tf
-    import matplotlib.pyplot as plt
-    import numpy as np
 
     fft = tf.signal.rfft(series)
     f_per_dataset = np.arange(0, len(fft))
@@ -205,8 +207,7 @@ def lag_plot(df, lag=1, redcols=None, figsize=(20,15), alpha=.3):
     df: pd.dataframe
     redcols: list/array of column names to be colored with red.
     """
-    import matplotlib.pyplot as plt
-    import pandas as pd 
+
     plt.figure(figsize=figsize)
     for i, col in enumerate(df.columns):
         ax = plt.subplot(len(df.columns)//5 +1 , 5, i+1)
@@ -227,7 +228,9 @@ def pca_plot(data, n_comp=None, regex=None, figsize=(5,3)):
     n_comp: number of components desired in PCA. 
             Default to data column numbers if not specified.
     """
-    import matplotlib.pyplot as plt
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.decomposition import PCA 
+
     fig = plt.figure(figsize=figsize)
     ax = fig.add_axes([0,0,1,1])
     x = data
@@ -248,117 +251,46 @@ def pca_plot(data, n_comp=None, regex=None, figsize=(5,3)):
 
 
 
-
-
-
-
-
-
-
-
-
-#%% testing functions
-def adftest(series, verbose=True, **kwargs):
-    """adfuller + printing"""
-    
-    # kwargs: maxlag: default=12*(nobs/100)^{1/4}, regression, autolag
-    from statsmodels.tsa.stattools import adfuller
-    res = adfuller(series.values, **kwargs)
-    if verbose:
-        print('ADF Statistic: {:13f} \tp-value: {:10f}'.\
-              format(res[0], res[1]))
-        if 'autolag' in kwargs.keys():
-            print('IC: {:6s} \t\t\tbest_lag: {:9d}'.\
-                  format(kwargs['autolag'], res[2]))
-        print('Critical Values: ', end='')
-        for key, value in res[4].items():
-            print('{:2s}: {:>7.3f}\t'.\
-                  format(key, value), end='')
-    return res
-
-
-def adfuller_table(df, verbose=False, alpha=0.05, **kwargs):
-    """iterate over adftest() to generate a table"""
-    import pandas as pd 
-    # kwargs: maxlag: default=12*(nobs/100)^{1/4}, regression, autolag
-    columns = [f'AIC_{int(alpha*100)}%level', 'AIC_bestlag', 
-               f'BIC_{int(alpha*100)}%level', 'BIC_bestlag']
-    table = pd.DataFrame(columns=columns)
-    for col in df.columns: 
-        row = []
-        for autolag in ['AIC', 'BIC']:
-            res = adftest(df[col], verbose=verbose, 
-                          autolag=autolag, **kwargs)
-            # sig=True means test statistics > critical value 
-            # => pass ADF test (reject H0:unit root)
-            sig = True if abs(res[0]) > \
-                  abs(res[4][f'{int(alpha*100)}%']) else False
-            row.extend([sig, res[2]])
-        table = table.append(
-            pd.Series(row, index=table.columns, name=col)
-        )
-    table.index.name = 'ADFuller Table alpha={}'.format(alpha)
-    return table
-
-
-def grangers_causation_table(data, xnames, ynames, maxlag, 
-                             test='ssr_chi2test', alpha=None):
+def predict_gt_plot(at, y_true_tra, y_pred_tra, y_true_tes, y_pred_tes, 
+                    figsize=(25,15), freq='MS'):
     """
-    Check Granger Causality of all possible combinations of the Time series.
-    The values in the table are the P-Values/boolean (reject H0 or not). 
-    H0: X does not cause Y (iff coefs of X on Y is 0)
-    
-    Inputs
-    ------
-    data: pd.DataFrame - containing the time series variables
-    xnames: list of TS variable names to test granger causality on ynames.
-    ynames: list of TS variable names to be granger predicted.
-    maxlag: int - max lags.
-    test  : str - 'ssr_ftest', 'ssr_chi2test', 'lrtest', 'params_ftest'
-    alpha : float - significance level. 
-            Return boolean table if alpha is specified != None.
-    
-    Returns 
-    -------
-    pd.DataFrame table showing Granger test result. 
-    """
-    res = pd.DataFrame(np.zeros((len(xnames), len(ynames))), 
-                       columns=ynames, index=xnames)
-    for c in res.columns:
-        for r in res.index:
-            test_result = grangercausalitytests(data[[r, c]], 
-                          maxlag=maxlag, verbose=False)
-            p_values = [ round(test_result[i+1][0][test][1],4) 
-                         for i in range(maxlag) ]
-            min_p_value = np.min(p_values)
-            res.loc[r, c] = min_p_value
-    res.columns = res.columns + '_y'
-    res.index =  res.index + '_x'
-    if alpha is None: 
-        res.index.name = 'Granger Causation Table'
-        return res
-    res.index.name = 'Granger Causation Table alpha={}'.format(alpha)
-    return res < alpha
+    Plot the ground truth and prediction curves on both train and test set.
+    y_tra and y_tes should have timestamp at index.
 
-
-def durbin_watson_test(model, verbose=False):
+    :param at: [specifies which prediction horizon it is which will be used to shift the timestamp of ground truth data, ie, ``y_tra`` and ``y_tes``.]
+    :type at: [int]
+    :param y_true_tra: training set ground truth time series
+    :type y_true_tra: pd.DataFrame, pd.Series
+    :param y_pred_tra: training set prediction time series
+    :type y_pred_tra: pd.DataFrame, pd.Series, np.array
+    :param y_true_tes: testing set ground truth time series
+    :type y_true_tes: pd.DataFrame, pd.Series
+    :param y_pred_tes: testing set prediction time series
+    :type y_pred_tes: pd.DataFrame, pd.Series, np.array
+    :param figsize: [description], defaults to (25,15)
+    :type figsize: tuple, optional
+    :param freq: freq of the input time series data, defaults to 'MS'
+    :type freq: str, optional
+    :return: axes that contains data content of the figure.
+    :rtype: plt.Axes
     """
-    Test for serial correlation of error terms.
-    model: statsmodel.VAR model
-    """
-    # verbose
-    if verbose: 
-        print( '\n'.join([
-            'Durbin-Watson test-stat of autocorrelation of error terms:', 
-            'd=0: perfect autocorrelation', 
-            'd=2: no autocorrelation', 
-            'd=4: perfect negative autocorrelation.' 
-        ]))
-    print('\n', end='')
-    
-    # res
-    res = statsmodels.stats.stattools.durbin_watson(model.resid)
-    for col, value in zip(model.names, res):
-        print( '{:32s}: {:>6.2f}'.format(col, value))
-    
-    return res
+    # initialization 
+    y_true_tra, y_true_tes = pd.DataFrame(y_true_tra), pd.DataFrame(y_true_tes)
+    y_pred_tra, y_pred_tes = np.array(y_pred_tra), np.array(y_pred_tes)
+    if y_pred_tra.ndim == 1: 
+        y_pred_tra = y_pred_tra.reshape(-1, 1)
+    if y_pred_tes.ndim == 1: 
+        y_pred_tes = y_pred_tes.reshape(-1, 1)
+    # plot 
+    num_targets = y_true_tra.shape[1]
+    targets = y_true_tra.columns
+    fig, ax = plt.subplots(num_targets, 1, figsize=figsize, sharex=True)
+    for j, ta in enumerate(targets):
+        ax[j].plot(y_true_tra.asfreq(freq).index.shift(at), y_pred_tra[:, j], c='b', label='train-predict')
+        ax[j].plot(y_true_tra.asfreq(freq).index.shift(at), y_true_tra.values[:, j], c='k', label='gt-tra')
+        ax[j].plot(y_true_tes.asfreq(freq).index.shift(at), y_pred_tes[:, j], c='orange', label='test-predict')
+        ax[j].plot(y_true_tes.asfreq(freq).index.shift(at), y_true_tes.values[:, j], c='k', label='gt-tes')
+        ax[j].set_title(f'prediction of {ta} at {at}th-horizon', fontdict = {'fontsize' : 20})
+    plt.legend()
+    plt.tight_layout()
+    return ax
