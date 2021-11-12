@@ -138,6 +138,25 @@ def percent_change(data):
     return (last_value - np.mean(previous_values)) / np.mean(previous_values)
 
 
+def fourier_features(index, freq, order):
+    """
+    `Reference`_: https://www.kaggle.com/ryanholbrook/seasonality
+    Example: 
+    >>> # Compute Fourier features to the 4th order (8 new features) for a
+    >>> # series y with daily observations and annual seasonality:
+    >>> # fourier_features(y, freq=365.25, order=4)
+    """
+    time = np.arange(len(index), dtype=np.float32)
+    k = 2 * np.pi * (1 / freq) * time
+    features = {}
+    for i in range(1, order + 1):
+        features.update({
+            f"sin_{freq}_{i}": np.sin(i * k),
+            f"cos_{freq}_{i}": np.cos(i * k),
+        })
+    return pd.DataFrame(features, index=index)
+
+
 def replace_outliers(df, window=7, k=3, method='mean'):
     """
     Inputs:

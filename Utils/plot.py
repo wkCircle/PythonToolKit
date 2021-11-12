@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt 
-import statsmodels
 import seaborn as sns 
 import numpy as np
 import pandas as pd 
+from scipy.signal import periodogram
 
 
 #%% plotting functions
@@ -147,35 +147,6 @@ def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
 
 
 # periodogram plots 
-def periodogram(series, division=8, figsize=(15,10), ax=None):
-    """
-    plot periodogram of the series to find most important 
-    frequency/periodicity
-    """
-
-    dt = 1
-    T = len(series.index)
-    t = np.arange(0, T, dt)
-    f = series.fillna(0)
-    n = len(t)
-    fhat = np.fft.fft(f, n, )
-    PSD = np.conj(fhat) / n
-    freq = np.arange(n) # * (1/(dt*n))
-    L = np.arange(1, np.floor(n/division), dtype="int") 
-    # n/4, otherwise too long of a stretch to see anything
-    if ax is None: 
-        _, ax = plt.subplots(1, 1, figsize=figsize)
-    ax.plot(freq[L], np.abs(PSD[L]), linewidth=2, 
-             label='Lag Importance')
-    ax.hlines(0, xmin=0, xmax=n, colors='black')
-    ax.set_xlim(freq[L[0]], freq[L[-1]])
-    ax.set_xlabel("Lag")
-    ax.tick_params(axis='x', labelbottom=True)     # labelbottom: make xticks everywhere
-    ax.set_title('Periodogram of ' + series.name)
-    ax.legend()
-    
-    return ax 
-    
 def rfft_plot(series, ylim=(0,400), figsize=(15,10)):
     """plot real valued fourier transform to find most important 
     frequency/periodicity"""
@@ -200,23 +171,145 @@ def rfft_plot(series, ylim=(0,400), figsize=(15,10)):
     _ = plt.xlabel('Frequency (log scale)')
     plt.show()
 
-    
-def lag_plot(df, lag=1, redcols=None, figsize=(20,15), alpha=.3):
-    """
-    plot t+lag against t of each feature in df.
-    df: pd.dataframe
-    redcols: list/array of column names to be colored with red.
-    """
 
-    plt.figure(figsize=figsize)
-    for i, col in enumerate(df.columns):
-        ax = plt.subplot(len(df.columns)//5 +1 , 5, i+1)
-        color = 'k'
-        if redcols is not None and col in redcols:
-            color = 'r'
-        pd.plotting.lag_plot(df[col], lag=lag, alpha=alpha)
-        plt.title(col, color=color)
-    ax.figure.tight_layout(pad=0.5)
+def seasonal_plot(data, y, period, freq, ax=None, figsize=(20,10)):
+    """
+    Plot every ``period`` of ``y`` on ``freq``.
+    Example:
+    >>> X = pd.read_csv(...)
+    >>> X['day'] = X.index.dayofweek 
+    >>> X['week'] = X.index.week
+    >>> seasonal_plot(X, y='sales', period='week', freq='day')
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    palette = sns.color_palette("husl", n_colors=data[period].nunique(),)
+    ax = sns.lineplot(
+        x=freq,
+        y=y,
+        hue=period,
+        data=data,
+        ci=False,
+        ax=ax,
+        palette=palette,
+        legend=False,
+    )
+    ax.set_title(f"Seasonal Plot ({period}/{freq})")
+    # loop over # nique periods
+    for line, name in zip(ax.lines, data[period].unique()):
+        # annotate besides the last pt of each curve
+        y_ = line.get_ydata()[-1]
+        ax.annotate(
+            name,
+            xy=(1, y_),
+            xytext=(6, 0),
+            color=line.get_color(),
+            xycoords=ax.get_yaxis_transform(),
+            textcoords="offset points",
+            size=14,
+            va="center",
+        )
+    return ax
+
+
+def periodogram_plot(ts, detrend='linear', ax=None):
+    from scipy.signal import periodogram
+    fs = pd.Timedelta("1Y") / pd.Timedelta("1D") # fs (int)=365.2425
+    freqencies, spectrum = periodogram(
+        ts,                 # Time series of measurement values
+        fs=fs,              # Sampling frequency of the time series. Defaults to 1.0.
+        detrend=detrend,    # {'constant', 'linear'}
+        window="boxcar",
+        scaling='spectrum', # {‘density’, ‘spectrum’},
+    )
+    if ax is None:
+        _, ax = plt.subplots()
+    # stepwise plot 
+    ax.step(freqencies, spectrum, color="purple")
+    ax.set_xscale("log")
+    ax.set_xticks([0.5, 1, 2, 4, 6, 12, 26, 52, 104, 365])
+    ax.set_xticklabels(
+        [
+            "Biannual (0.5)",
+            "Annual (1)",
+            "Semiannual (2)",
+            "Quarterly (4)",
+            "Bimonthly (6)",
+            "Monthly (12)",
+            "Biweekly (26)",
+            "Weekly (52)",
+            "Semiweekly (104)",
+            "Daily (365)"
+        ],
+        rotation=30,
+    )
+    ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    ax.set_ylabel("Variance")
+    ax.set_title("Periodogram")
+    return ax
+
+
+
+def _lagplot(x, y=None, lag=1, standardize=False, ax=None, **kwargs):
+    """
+    helper function of plot_lag. 
+    `Ref`_: https://www.kaggle.com/ryanholbrook/time-series-as-features
+    """
+    from matplotlib.offsetbox import AnchoredText
+    x_ = x.shift(lag)
+    if standardize:
+        x_ = (x_ - x_.mean()) / x_.std()
+    if y is not None:
+        y_ = (y - y.mean()) / y.std() if standardize else y
+    else:
+        y_ = x
+    corr = y_.corr(x_)
+    if ax is None:
+        fig, ax = plt.subplots()
+    scatter_kws = dict(
+        alpha=0.75,
+        s=3,
+    )
+    line_kws = dict(color='C3', )
+    ax = sns.regplot(x=x_,
+                     y=y_,
+                     scatter_kws=scatter_kws,
+                     line_kws=line_kws,
+                     lowess=True,
+                     ax=ax,
+                     **kwargs)
+    at = AnchoredText(
+        f"{corr:.2f}",
+        prop=dict(size="large"),
+        frameon=True,
+        loc="upper left",
+    )
+    at.patch.set_boxstyle("square, pad=0.0")
+    ax.add_artist(at)
+    ax.set(title=f"Lag {lag}", xlabel=x_.name, ylabel=y_.name)
+    return ax
+
+
+def lags_plot(x, y=None, lags=6, nrows=1, lagplot_kwargs={}, **kwargs):
+    """
+    `Ref`_: https://www.kaggle.com/ryanholbrook/time-series-as-features
+    """
+    import math
+    kwargs.setdefault('nrows', nrows)
+    kwargs.setdefault('ncols', math.ceil(lags / nrows))
+    kwargs.setdefault('figsize', (kwargs['ncols'] * 2, nrows * 2 + 0.5))
+    fig, axs = plt.subplots(sharex=True, sharey=True, squeeze=False, **kwargs)
+    for ax, k in zip(fig.get_axes(), range(kwargs['nrows'] * kwargs['ncols'])):
+        if k + 1 <= lags:
+            ax = _lagplot(x, y, lag=k + 1, ax=ax, **lagplot_kwargs)
+            ax.set_title(f"Lag {k + 1}", fontdict=dict(fontsize=14))
+            ax.set(xlabel="", ylabel="")
+        else:
+            ax.axis('off')
+    plt.setp(axs[-1, :], xlabel=x.name)
+    plt.setp(axs[:, 0], ylabel=y.name if y is not None else x.name)
+    fig.tight_layout(w_pad=0.1, h_pad=0.1)
+    return fig
     
 
 def pca_plot(data, n_comp=None, regex=None, figsize=(5,3)):
