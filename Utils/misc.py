@@ -1,4 +1,5 @@
 import re 
+import pandas as pd 
 
 # warning class  
 class DuplicatedValueWarning(UserWarning): 
@@ -31,3 +32,18 @@ def config_parser(key: str, space: dict):
     # modify the keys by deleting the prefix 
     keys_no_prefix = [k.replace(f'{key}__', '') for k in keys]
     return dict(zip(keys_no_prefix, [space[k] for k in keys] ))
+
+def get_equivalent_days(value: float = 1, unit: str = 'D'): 
+    unit = unit.lower() 
+    if unit is None: 
+        return None 
+    elif re.search('d$|days?', unit, flags=re.IGNORECASE): 
+        output = value * 1
+    elif re.search('w$|w-.+|weeks?', unit, flags=re.IGNORECASE): 
+        output = value * 7
+    elif re.search('m$|months?', unit, flags=re.IGNORECASE): 
+        output = value * 30.4368
+    elif re.search('Q$|quarters?', unit, flags=re.IGNORECASE): 
+        output = value * 91.3106
+    print(output, type(output))
+    return pd.Timedelta(output, unit='D')

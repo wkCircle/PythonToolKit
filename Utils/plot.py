@@ -3,6 +3,8 @@ import seaborn as sns
 import numpy as np
 import pandas as pd 
 from scipy.signal import periodogram
+from .misc import get_equivalent_days
+import re 
 
 
 #%% plotting functions
@@ -211,26 +213,48 @@ def seasonal_plot(data, y, period, freq, ax=None, figsize=(20,10)):
         )
     return ax
 
-
-def periodogram_plot(ts, detrend='linear', ax=None):
-    from scipy.signal import periodogram
-    fs = pd.Timedelta("1Y") / pd.Timedelta("1D") # fs (int)=365.2425
-    freqencies, spectrum = periodogram(
-        ts,                 # Time series of measurement values
-        fs=fs,              # Sampling frequency of the time series. Defaults to 1.0.
-        detrend=detrend,    # {'constant', 'linear'}
-        window="boxcar",
-        scaling='spectrum', # {‘density’, ‘spectrum’},
+def plot_periodogram(ts: pd.Series, ts_freq=None, detrend='linear', ax=None):
+    # extract relevant freq
+    assert isinstance(ts_freq, str) or ts_freq is None, "ts_freq type not valid."
+    if ts_freq is None: 
+        dates = ts.index 
+        if isinstance(dates, pd.PeriodIndex):
+            ts_freq = dates.freqstr     # may contain numbers
+        else: 
+            ts_freq = pd.infer_freq(dates)
+    assert ts_freq is not None, (
+        "Cannot decide the ts freq. Please either transform the date index to"+
+        "period or set a value for ts_freq instead of the default value None."
     )
+    # conver ts_freq to Timedelta
+    value = re.search("^\d*", ts_freq)[0] # only match head string numbers
+    if value == '': 
+        value = 1.0
+    denominator = get_equivalent_days(float(value), unit=ts_freq)
+    
+    # get power spectrum 
+    # default is use 1Y as numerator
+    fs = pd.Timedelta(365.2425, unit='D') / denominator
+    freqencies, spectrum = periodogram(
+        ts,
+        fs=fs,
+        detrend=detrend,
+        window="boxcar",
+        scaling='spectrum',
+    )
+    # plot 
     if ax is None:
         _, ax = plt.subplots()
-    # stepwise plot 
     ax.step(freqencies, spectrum, color="purple")
     ax.set_xscale("log")
-    ax.set_xticks([0.5, 1, 2, 4, 6, 12, 26, 52, 104, 365])
+    # periods = 1/w = fs/w', where w' is the number for annotatioin in x-axis.
+    ## Eg, if fs=365 and ts_freq is daily, then period =1Y if w' is 1, =Quarter if w' is 4. 
+    ## Eg, if fs=365 and ts_freq is 2D, then period =Biannual if w' is 1, =Annual if w' is 2, =2/3Y if w' is 3, =Quarter if w' is 8.
+    ## Eg, if fs=12 and ts_freq is monthly, then period =1Y if w' is 1, =Quarter if w' is 4. 
+    # I intentionally define fs = 365 / ts_freq in the above so that second eg never happens.
+    ax.set_xticks([ 1, 2, 4, 6, 12, 26, 52, 104])
     ax.set_xticklabels(
         [
-            "Biannual (0.5)",
             "Annual (1)",
             "Semiannual (2)",
             "Quarterly (4)",
@@ -239,15 +263,13 @@ def periodogram_plot(ts, detrend='linear', ax=None):
             "Biweekly (26)",
             "Weekly (52)",
             "Semiweekly (104)",
-            "Daily (365)"
         ],
-        rotation=30,
+        rotation=90,
     )
     ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     ax.set_ylabel("Variance")
     ax.set_title("Periodogram")
     return ax
-
 
 
 def _lagplot(x, y=None, lag=1, standardize=False, ax=None, **kwargs):
