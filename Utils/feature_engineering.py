@@ -108,11 +108,36 @@ def add_MS(df, features, window, **kwargs):
     for w in window: 
         res = df[features].rolling(w, min_periods=1, **kwargs).std()
         res.columns = [str(s)+f'_ms{w}' for s in features]
-        # use feature mean to fill na
+        # use feature mean to fill na  (shall be the first 3 records)
         res.fillna(res.mean(), inplace=True)
         resList.append(res)
     res = pd.concat(resList, axis=1)
     
+    return pd.concat([df, res], axis=1), res.columns
+
+def add_skew(df, features, window, **kwargs): 
+    """
+    Args:
+        df ([type]): [description]
+        features ([type]): [description]
+        window ([type]): should be at least 3. Otherwise returned are all NaN.
+
+    Returns:
+        [type]: [description]
+    """
+    if isinstance(features, str):
+        features = [features]
+    if isinstance(window, int):
+        window = [window]
+
+    resList = []
+    for w in window: 
+        res = df[features].rolling(w, min_periods=1, **kwargs).skew()
+        res.columns = [str(s)+f'_skew{w}' for s in features]
+        # use feature mean to fill na (shall be the first 3 records)
+        res.fillna(res.mean(), inplace=True)
+        resList.append(res)
+    res = pd.concat(resList, axis=1)
     return pd.concat([df, res], axis=1), res.columns
 
 def npshift(arr, num, fill_value=np.nan):
