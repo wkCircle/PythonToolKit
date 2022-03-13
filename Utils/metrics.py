@@ -1,4 +1,5 @@
 import sklearn 
+from sklearn import metrics 
 import numpy as np 
 import pandas as pd 
 import re 
@@ -6,6 +7,14 @@ import re
 class MetricsCls:
     """
     Requirement: metric functions under the class should always have the y_true, and y_pred args.
+    Examples: 
+        >>> obj=MetricsCls(config={'MAPE__version':'sklearn'})
+        >>> x, y=[0.025,0.5,0.5,0], [2,0.5,0, 5]
+        >>> print(obj.score(x,y))
+        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': 5629499534213140.0, 'DS': 0.0}
+        >>> obj=MetricsCls(config={'MAPE__version':'selfmade'})
+        >>> print(obj.score(x,y))
+        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': inf, 'DS': 0.0}
     """
     
     def __init__(self, metrics=[], config={}):
@@ -32,6 +41,7 @@ class MetricsCls:
     def config_parser(self, metric): 
         """
         return the dict that contains only the keys with ``metric__`` pattern. 
+        Then this pattern will be removed.
         """
         # define pattern 
         prefix = f'{metric}__\w+'
@@ -72,11 +82,11 @@ class MetricsCls:
     
     @staticmethod
     def DS(y_true, y_pred, version='selfmade', **kwargs):
+        # check & initialization 
         version = version.lower()
         assert version in ['selfmade', 'bd']
-        y_true = np.array(y_true).squeeze()
-        y_pred = np.array(y_pred).squeeze()
-        
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+
         if version =='bd': 
             return MetricsCls._BD_DS(y_true, y_pred, **kwargs)
         
@@ -92,20 +102,19 @@ class MetricsCls:
         if tolerance < 0:
             raise ValueError('Tolerance cannot be less than zero!')
         # define common variables
-        y_true = np.array(y_true).squeeze()
-        y_pred = np.array(y_pred).squeeze()
-        true_diff = np.diff(y_true, axis=0).squeeze()
-        pred_diff = np.diff(y_pred, axis=0).squeeze()
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+        true_diff = np.diff(y_true, axis=0)
+        pred_diff = np.diff(y_pred, axis=0)
         
         # case not zero: modify true_diff and pred_diff
         if tolerance != 0:
             # get %change 
             tmp = pd.DataFrame(y_true).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < tolerance).squeeze()
+            mask = np.array(tmp.abs() < tolerance)
             true_diff[mask] = 0
             
             tmp = pd.DataFrame(y_pred).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < tolerance).squeeze()
+            mask = np.array(tmp.abs() < tolerance)
             pred_diff[mask] = 0
 
         # core formula
@@ -136,11 +145,3 @@ class MetricsCls:
             return mape 
         elif multioutput == 'uniform_average': 
             return np.average(mape, weights=None)
-
-
-# Testing the Class 
-# obj=MetricsCls(config={'MAPE__version':'sklearn'})
-# x, y=[0.025,0.5,0.5,0], [2,0.5,0, 5]
-# print(obj.score(x,y))
-# obj=MetricsCls(config={'MAPE__version':'selfmade'})
-# print(obj.score(x,y))
