@@ -44,9 +44,7 @@ def adfuller_table(df, verbose=False, alpha=0.05, **kwargs):
             sig = True if abs(res[0]) > \
                   abs(res[4][f'{int(alpha*100)}%']) else False
             row.extend([sig, res[2]])
-        table = table.append(
-            pd.Series(row, index=table.columns, name=col)
-        )
+        table = pd.concat([table, pd.Series(row, index=table.columns, name=col)], axis=0)
     table.index.name = 'ADFuller Table alpha={}'.format(alpha)
     return table
 
