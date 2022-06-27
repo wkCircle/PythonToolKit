@@ -187,13 +187,15 @@ def rfft_plot(series, ylim=(0,400), figsize=(15,10)):
 
 def seasonal_plot(data, y, period, freq, ax=None, figsize=(20,10)):
     """
-    Plot every ``period`` of ``y`` on ``freq``.
+    Plot every ``period`` of ``y`` as a line on ``freq`` as x-axis.
+
     Example:
-    >>> X = pd.read_csv(...)
-    >>> X['day'] = X.index.dayofweek 
-    >>> X['week'] = X.index.week
-    >>> seasonal_plot(X, y='sales', period='week', freq='day')
+        >>> X = pd.read_csv(...)
+        >>> X['day'] = X.index.dayofweek 
+        >>> X['week'] = X.index.week
+        >>> seasonal_plot(X, y='sales', period='week', freq='day')
     """
+    
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     palette = sns.color_palette("husl", n_colors=data[period].nunique(),)
@@ -208,13 +210,16 @@ def seasonal_plot(data, y, period, freq, ax=None, figsize=(20,10)):
         legend=False,
     )
     ax.set_title(f"Seasonal Plot ({period}/{freq})")
-    # loop over # nique periods
+    
+    # loop over lines/period for "period" annotation
     for line, name in zip(ax.lines, data[period].unique()):
         # annotate besides the last pt of each curve
-        y_ = line.get_ydata()[-1]
+        y_ = line.get_ydata()
+        if y_.size == 0: 
+            continue 
         ax.annotate(
             name,
-            xy=(1, y_),
+            xy=(1, y_[-1]), # on last data point
             xytext=(6, 0),
             color=line.get_color(),
             xycoords=ax.get_yaxis_transform(),
