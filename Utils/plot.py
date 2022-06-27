@@ -100,20 +100,31 @@ def corrtri_plot(df, figsize=(10,10)):
                     square=True, mask=mask, linewidths=1, cbar=False)
     plt.show()
     
-def acpac_plot(data, features=[], figsize=(10,5)):
-    """Autocorrelation and Partial-aurocorrelation plots."""
+def acpac_plot(data, features: list=None, lags: int=None, figsize: tuple=(10,5), **kwargs):
+    """
+    Autocorrelation and Partial-aurocorrelation plots.
+    See `Refenence`_: https://www.statsmodels.org/dev/generated/statsmodels.graphics.tsaplots.plot_acf.html
+    
+    Args: 
+        data ([pd.DataFrame, pd.Series]): time series data that contains ``features`` as columns for ac/pac plots. 
+        features (list, optional): list of columns of ``data``. If None, features will be all ``data.columns``. Defaults to None. 
+        lags (int, optional): An int or array of lag values, used on horizontal axis. Uses np.arange(lags) when lags is an int. 
+            If not provided, lags=np.arange(len(corr)) is used. 
+        kwargs (optional): other arguments specific to acf/pacf plots. Use nested dict with keys 'acf' and 'pacf' to specify configs respectively.
+        figsize (tuple, optional): adjust figure size (width, height).
+
+    Returns: 
+        None: direcly plt.show() plots.
+    """
     from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
     
-    if features == []: 
+    if features is None: 
         features = data.columns 
+
     for i, col in enumerate(features):
         fig, ax = plt.subplots(1,2,figsize=figsize)
-        plot_acf(data[col], lags=30, 
-                 title='AC: ' + data[col].name, 
-                 ax=ax[0])  # missing='drop'
-        plot_pacf(data[col], lags=30, 
-                  title='PAC: ' + data[col].name, 
-                 ax=ax[1])
+        plot_acf(data[col], lags=lags, title='AC: ' + data[col].name, ax=ax[0], **kwargs.get("acf", {}))
+        plot_pacf(data[col], lags=lags, title='PAC: ' + data[col].name, ax=ax[1], **kwargs.get("pacf", {}))
     
         
 def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):

@@ -56,19 +56,17 @@ def grangers_causation_table(data, xnames, ynames, maxlag,
     The values in the table are the P-Values/boolean (reject H0 or not). 
     H0: X does not cause Y (iff coefs of X on Y is 0)
     
-    Inputs
-    ------
-    data: pd.DataFrame - containing the time series variables
-    xnames: list of TS variable names to test granger causality on ynames.
-    ynames: list of TS variable names to be granger predicted.
-    maxlag: int - max lags.
-    test  : str - 'ssr_ftest', 'ssr_chi2test', 'lrtest', 'params_ftest'
-    alpha : float - significance level. 
-            Return boolean table if alpha is specified != None.
+    Args:
+        data: pd.DataFrame - containing the time series variables
+        xnames: list of TS variable names to test granger causality on ynames.
+        ynames: list of TS variable names to be granger predicted.
+        maxlag: int - max lags.
+        test  : str - 'ssr_ftest', 'ssr_chi2test', 'lrtest', 'params_ftest'
+        alpha : float - significance level. 
+                Return boolean table if alpha is specified != None.
     
-    Returns 
-    -------
-    pd.DataFrame table showing Granger test result. 
+    Returns:
+        pd.DataFrame: table showing Granger test result. 
     """
     res = pd.DataFrame(np.zeros((len(xnames), len(ynames))), 
                        columns=ynames, index=xnames)
@@ -92,7 +90,9 @@ def grangers_causation_table(data, xnames, ynames, maxlag,
 def durbin_watson_test(model, verbose=False):
     """
     Test for serial correlation of error terms.
-    model: statsmodel.VAR model
+
+    Args: 
+        model: statsmodel.VAR model
     """
     # verbose
     if verbose: 
