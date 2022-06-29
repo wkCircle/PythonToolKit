@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt 
+import colorsys
 import seaborn as sns 
 import numpy as np
 import pandas as pd 
@@ -24,13 +25,11 @@ def adjust_bright(color, amount=1.2):
         tuple: color with brightness level adjusted.
     
     """
-    import matplotlib.colors as mc
-    import colorsys
     try:
-        c = mc.cnames[color]
+        c = matplotlib.colors.cnames[color]
     except:
         c = color
-    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    c = colorsys.rgb_to_hls(*matplotlib.colors.to_rgb(c))
     return colorsys.hls_to_rgb(
         c[0], max(0, min(1, amount * c[1])), c[2])
 
