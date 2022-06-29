@@ -1,7 +1,9 @@
+import matplotlib
 import matplotlib.pyplot as plt 
 import seaborn as sns 
 import numpy as np
 import pandas as pd 
+from statsmodels.graphics import tsaplots
 from scipy.signal import periodogram
 from .misc import get_equivalent_days
 import re 
@@ -11,17 +13,15 @@ import re
 def adjust_bright(color, amount=1.2):
     """
     Adjust color brightness in plots for use.
-    Inputs
-    ------
-    color: str | list, 
-        color can be basic color string name or rgb list. 
-    amount: float, 
-        the level of brightness of the input color to be adjusted. 
-        the higher the amount, the brighter the color is.
+    Args: 
+        color: str | list, 
+            color can be basic color string name or rgb list. 
+        amount: float, 
+            the level of brightness of the input color to be adjusted. 
+            the higher the amount, the brighter the color is.
     
-    Returns
-    -------
-    color with brightness level adjusted.
+    Returns:
+        tuple: color with brightness level adjusted.
     
     """
     import matplotlib.colors as mc
@@ -34,11 +34,13 @@ def adjust_bright(color, amount=1.2):
     return colorsys.hls_to_rgb(
         c[0], max(0, min(1, amount * c[1])), c[2])
 
-def missingval_plot(df, figsize=(20,6), show=True):
+def missingval_plot(df, figsize=(20,6)):
     """
-    Visualize index location of missin values of each feature.
-    Doesn't work for 1-dim df.
-    df: pd.DataFrame 
+    Visualize index location of missin values of each feature. Doesn't work for 1-dim df.
+
+    Args: 
+        df (pd.DataFrame): the data to be plotted for missing value patterns. 
+
     """
     
     # check all are bool
@@ -58,8 +60,7 @@ def missingval_plot(df, figsize=(20,6), show=True):
         tick.label.set_fontsize(12) 
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(12)
-    if show: 
-        plt.show()
+    plt.show()
 
 def plot_cv_indices(cv, X, y, ax, n_splits, lw=10):
     """
@@ -116,15 +117,14 @@ def acpac_plot(data, features: list=None, lags: int=None, figsize: tuple=(10,5),
     Returns: 
         None: direcly plt.show() plots.
     """
-    from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
     
     if features is None: 
         features = data.columns 
 
     for i, col in enumerate(features):
         fig, ax = plt.subplots(1,2,figsize=figsize)
-        plot_acf(data[col], lags=lags, title='AC: ' + data[col].name, ax=ax[0], **kwargs.get("acf", {}))
-        plot_pacf(data[col], lags=lags, title='PAC: ' + data[col].name, ax=ax[1], **kwargs.get("pacf", {}))
+        tsaplots.plot_acf(data[col], lags=lags, title='AC: ' + data[col].name, ax=ax[0], **kwargs.get("acf", {}))
+        tsaplots.plot_pacf(data[col], lags=lags, title='PAC: ' + data[col].name, ax=ax[1], **kwargs.get("pacf", {}))
     
         
 def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
@@ -161,8 +161,9 @@ def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
 
 # periodogram plots 
 def rfft_plot(series, ylim=(0,400), figsize=(15,10)):
-    """plot real valued fourier transform to find most important 
-    frequency/periodicity"""
+    """
+    plot real valued fourier transform to find most important frequency/periodicity
+    """
     import tensorflow as tf
 
     fft = tf.signal.rfft(series)
@@ -293,7 +294,6 @@ def _lagplot(x, y=None, lag=1, standardize=False, ax=None, **kwargs):
     helper function of plot_lag. 
     `Ref`_: https://www.kaggle.com/ryanholbrook/time-series-as-features
     """
-    from matplotlib.offsetbox import AnchoredText
     x_ = x.shift(lag)
     if standardize:
         x_ = (x_ - x_.mean()) / x_.std()
@@ -316,7 +316,7 @@ def _lagplot(x, y=None, lag=1, standardize=False, ax=None, **kwargs):
                      lowess=True,
                      ax=ax,
                      **kwargs)
-    at = AnchoredText(
+    at = matplotlib.offsetbox.AnchoredText(
         f"{corr:.2f}",
         prop=dict(size="large"),
         frameon=True,
@@ -332,9 +332,8 @@ def lags_plot(x, y=None, lags=6, nrows=1, lagplot_kwargs={}, **kwargs):
     """
     `Ref`_: https://www.kaggle.com/ryanholbrook/time-series-as-features
     """
-    import math
     kwargs.setdefault('nrows', nrows)
-    kwargs.setdefault('ncols', math.ceil(lags / nrows))
+    kwargs.setdefault('ncols', np.ceil(lags / nrows).astype(int))
     kwargs.setdefault('figsize', (kwargs['ncols'] * 2, nrows * 2 + 0.5))
     fig, axs = plt.subplots(sharex=True, sharey=True, squeeze=False, **kwargs)
     for ax, k in zip(fig.get_axes(), range(kwargs['nrows'] * kwargs['ncols'])):
@@ -353,11 +352,12 @@ def lags_plot(x, y=None, lags=6, nrows=1, lagplot_kwargs={}, **kwargs):
 def pca_plot(data, n_comp=None, regex=None, figsize=(5,3)):
     """
     Plot n_comp pricipal components of data via PCA.
-    data:   pd.DataFrame / np.ndarray
-    regex:  string pattern to filter data. 
-            Use all data if not specified.
-    n_comp: number of components desired in PCA. 
-            Default to data column numbers if not specified.
+
+    Args: 
+        data:   pd.DataFrame / np.ndarray
+        regex:  string pattern to filter data. 
+                Use all data if not specified.
+        n_comp: number of components desired in PCA. Default to data column numbers if not specified.
     """
     from sklearn.preprocessing import StandardScaler
     from sklearn.decomposition import PCA 
@@ -388,22 +388,18 @@ def predict_gt_plot(at, y_true_tra, y_pred_tra, y_true_tes, y_pred_tes,
     Plot the ground truth and prediction curves on both train and test set.
     y_tra and y_tes should have timestamp at index.
 
-    :param at: [specifies which prediction horizon it is which will be used to shift the timestamp of ground truth data, ie, ``y_tra`` and ``y_tes``.]
-    :type at: [int]
-    :param y_true_tra: training set ground truth time series
-    :type y_true_tra: pd.DataFrame, pd.Series
-    :param y_pred_tra: training set prediction time series
-    :type y_pred_tra: pd.DataFrame, pd.Series, np.array
-    :param y_true_tes: testing set ground truth time series
-    :type y_true_tes: pd.DataFrame, pd.Series
-    :param y_pred_tes: testing set prediction time series
-    :type y_pred_tes: pd.DataFrame, pd.Series, np.array
-    :param figsize: [description], defaults to (25,15)
-    :type figsize: tuple, optional
-    :param freq: freq of the input time series data, defaults to 'MS'
-    :type freq: str, optional
-    :return: axes that contains data content of the figure.
-    :rtype: plt.Axes
+    Args: 
+        at (int): specifies which prediction horizon it is which will be used to shift the timestamp of ground truth data, ie, ``y_tra`` and ``y_tes``.
+        y_true_tra (pd.DataFrame, pd.Series): training set ground truth time series
+        y_pred_tra (pd.DataFrame, pd.Series, np.array): training set prediction time series
+        y_true_tes (pd.DataFrame, pd.Series): testing set ground truth time series
+        y_pred_tes (pd.DataFrame, pd.Series, np.array): testing set prediction time series
+        figsize (tuple of ints): 2-tuple integers (width, height) defining figure size, defaults to (25,15)
+        freq (str, optional): freq of the input time series data, defaults to 'MS'
+
+    Returns: 
+        plt.Axes: axes that contains data content of the figure.
+
     """
     # initialization 
     y_true_tra, y_true_tes = pd.DataFrame(y_true_tra), pd.DataFrame(y_true_tes)
