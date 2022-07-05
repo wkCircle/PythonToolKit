@@ -6,7 +6,10 @@ import re
 
 class MetricsCls:
     """
+    This class helps calculate different metrics. User can calculate them all at once by creating an instance and calling ``score()``. 
+    User can also calculate only a certain metric by directly calling, eg, ``MAE()`` method via class or instance.  
     Requirement: metric functions under the class should always have the y_true, and y_pred args.
+
     Examples: 
         >>> obj=MetricsCls(config={'MAPE__version':'sklearn'})
         >>> x, y=[0.025,0.5,0.5,0], [2,0.5,0, 5]
@@ -17,11 +20,13 @@ class MetricsCls:
         {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': inf, 'DS': 0.0}
     """
     
-    def __init__(self, metrics=[], config={}):
+    def __init__(self, metrics: list=[], config: dict={}):
         """
-        metrics: list of strings of metric name which should be the same as the function name here.
-        config: Eg, {'MAE__multioutput': 'uniform_average'}
+        Args: 
+            metrics: list of strings of metric name which should be the same as the function name here.
+            config: Eg, {'MAE__multioutput': 'uniform_average'}
         """
+        # set default metrics 
         if metrics == []: 
             metrics = ['MAE', 'RMSE', 'MAPE', 'DS']
         self.metrics_dict = dict(zip(metrics, [None]*len(metrics)))
@@ -33,9 +38,6 @@ class MetricsCls:
     
     @metrics_dict.setter
     def metrics_dict(self, value):
-        """
-        run all metrics stored in the metrics_dict
-        """
         self._metrics_dict = value 
     
     def config_parser(self, metric): 
@@ -92,7 +94,7 @@ class MetricsCls:
         # check & initialization 
         version = version.lower()
         assert version in ['normal', 'plateau']
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
+        y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
 
         if version =='plateau': 
             return MetricsCls._BD_DS(y_true, y_pred, **kwargs)
@@ -113,7 +115,7 @@ class MetricsCls:
         if threshold < 0:
             raise ValueError('Tolerance cannot be less than zero!')
         # define common variables
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
+        y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
         true_diff = np.diff(y_true, axis=0)
         pred_diff = np.diff(y_pred, axis=0)
         
@@ -121,11 +123,11 @@ class MetricsCls:
         if threshold != 0:
             # get %change 
             tmp = pd.DataFrame(y_true).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < threshold)
+            mask = np.asarray(tmp.abs() < threshold)
             true_diff[mask] = 0
             
             tmp = pd.DataFrame(y_pred).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < threshold)
+            mask = np.asarray(tmp.abs() < threshold)
             pred_diff[mask] = 0
 
         # core formula
@@ -143,13 +145,13 @@ class MetricsCls:
         if version == 'sklearn':
             return sklearn.metrics.mean_absolute_percentage_error(y_true, y_pred, sample_weight, multioutput)
         elif version == 'selfmade': 
-            return MetricsCls._selfmade_MAPE(y_true, y_pred, sample_weight, multioutput)
+            return MetricsCls._MAPE_selfmade(y_true, y_pred, sample_weight, multioutput)
         
     @staticmethod 
-    def _selfmade_MAPE(y_true, y_pred, sample_weight=None, multioutput='uniform_average'):
+    def _MAPE_selfmade(y_true, y_pred, sample_weight=None, multioutput='uniform_average'):
         """doesn't deal with the zero divisor case"""
         assert multioutput in ['raw_values', 'uniform_average']
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
+        y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
         mape_array = np.abs( (y_true - y_pred)/y_true )
         mape = np.average(mape_array, weights=sample_weight, axis=0)
         if multioutput == 'raw_values': 
