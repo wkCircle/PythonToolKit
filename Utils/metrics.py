@@ -51,11 +51,18 @@ class MetricsCls:
         keys_no_prefix = [k.replace(f'{metric}__', '') for k in keys]
         return dict(zip(keys_no_prefix, [self.config_dict[k] for k in keys] ))
     
-    def score(self, y_true, y_pred, digit=4, inplace=False): 
-        """ core function.
-        run all metrics stored in the metrics_dict and return result as a dict.
-        digit: number rounding
-        inplace: bool - modify self.metrics_dict if True
+    def score(self, y_true, y_pred, digit: int=4, inplace: bool=False): 
+        """ 
+        Core function.
+        Run all metrics stored in the metrics_dict and return result as a dict.
+
+        Args: 
+            digit (int, optional): number rounding. Defaults to 4. 
+            inplace (bool, optional): modify self.metrics_dict if True. Defaults to False.
+
+        Returns: 
+            dict: a dictionary that contains various metric name as keys and scores as values. 
+        
         """
         res_dict = self.metrics_dict.copy()
         # loop over metrics
@@ -81,25 +88,29 @@ class MetricsCls:
         return sklearn.metrics.mean_squared_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput, squared=squared)
     
     @staticmethod
-    def DS(y_true, y_pred, version='selfmade', **kwargs):
+    def DS(y_true, y_pred, version='normal', **kwargs):
         # check & initialization 
         version = version.lower()
-        assert version in ['selfmade', 'bd']
+        assert version in ['normal', 'plateau']
         y_true, y_pred = np.array(y_true), np.array(y_pred)
 
-        if version =='bd': 
+        if version =='plateau': 
             return MetricsCls._BD_DS(y_true, y_pred, **kwargs)
         
-        assert version == 'selfmade'
+        assert version == 'normal'
         # matrices case is also valid
         d = np.diff(y_true, axis=0) * np.diff(y_pred, axis=0) > 0
         return 100.0 * d.sum() / len(d.reshape(-1))
     
     @staticmethod 
-    def _BD_DS(y_true, y_pred, tolerance=0.01):
-        """Business Desk version DS (version=='bd')."""
+    def _DS_plateau(y_true, y_pred, threshold=0.01):
+        """
+        directional symmetry that additionally considers the case of plateau.
+        All percentage changes smaller than threshold are classified as plateau.
+        Then this version usually has lower score than the normal due to the additional category to be compared.
+        """
         # check 
-        if tolerance < 0:
+        if threshold < 0:
             raise ValueError('Tolerance cannot be less than zero!')
         # define common variables
         y_true, y_pred = np.array(y_true), np.array(y_pred)
@@ -107,14 +118,14 @@ class MetricsCls:
         pred_diff = np.diff(y_pred, axis=0)
         
         # case not zero: modify true_diff and pred_diff
-        if tolerance != 0:
+        if threshold != 0:
             # get %change 
             tmp = pd.DataFrame(y_true).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < tolerance)
+            mask = np.array(tmp.abs() < threshold)
             true_diff[mask] = 0
             
             tmp = pd.DataFrame(y_pred).pct_change().iloc[1:,:]
-            mask = np.array(tmp.abs() < tolerance)
+            mask = np.array(tmp.abs() < threshold)
             pred_diff[mask] = 0
 
         # core formula
