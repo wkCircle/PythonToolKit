@@ -86,7 +86,7 @@ class MetricsCls:
         return sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
         
     @staticmethod
-    def RMSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=False):
+    def MSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=False):
         return sklearn.metrics.mean_squared_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput, squared=squared)
     
     @staticmethod
@@ -158,3 +158,47 @@ class MetricsCls:
             return mape 
         elif multioutput == 'uniform_average': 
             return np.average(mape, weights=None)
+
+    @staticmethod 
+    def MSSE(y_true, y_pred, y_train=None, sp: int=1, squared=False): 
+        """
+        Mean Squared Scaled Error (MSSE) with formula from M5: 
+
+        .. math:: 
+            \frac{
+                \frac{1}{h} \Sum_{t=n+1}^{n+h} (Y_t - \hat{Y_t})^2
+            }{
+                \frac{1}{n-1} \Sum_{t=2}^{n} (Y_t - Y_{t-1})^2
+            } 
+        
+        Hence, y_true and y_pred should have same length $h$ while y_train can be of length $n$ or None. When y_train is None, we take y_true instead to calculate the denominator part.
+        Stonger version of MSSE can be found in sktime `here <https://www.sktime.org/en/v0.7.0/api_reference/modules/auto_generated/sktime.performance_metrics.forecasting.mean_squared_scaled_error.html>`_. Note that there is no standard definition of RMMSE, I use the def from M5 but there is alternative def, eg., [Theodosiou M. 2011]_.
+
+        .. [Theodosiou M. 2011] Theodosiou, M. (2011). Forecasting monthly and quarterly time series using STL decomposition. International Journal of Forecasting, 27(4), 1178–1195. doi:10.1016/j.ijforecast.2010.11.002
+
+        Args: 
+            y_train (np.array, pd.Series, pd.DataFrame, optional): training data of target feature 
+                of length $n$. If not provided, i.e. defaulted to None, takes y_true as y_train so $n=h$.
+            sp (int, optional): seasonality periodicity to create naive forecast based on y_train. 
+            squared (bool, optional): whether or not take squared root at the end of calculation. 
+                Defaults to False. 
+
+        Reference: 
+            M5 competition guidlines. 
+            https://github.com/Mcompetitions/M5-methods/blob/master/M5-Competitors-Guide.pdf
+        """
+        # init 
+        y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
+        if y_train is None: 
+            y_train = np.asarray(y_true.copy())
+        # naive forecasting 
+        naive_forecast = y_train[:-sp]
+        EPS = np.finfo(np.float64).eps
+
+        # core 
+        numerator = MetricsCls.MSE(y_true, y_pred, squared=False)
+        denominator = MetricsCls.MSE(y_train[sp:], naive_forecast)
+        output = numerator / np.maximum(denominator, EPS)
+        if squared: 
+            output = np.sqrt(output)
+        return output 
