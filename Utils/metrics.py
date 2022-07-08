@@ -28,7 +28,7 @@ class MetricsCls:
         """
         # set default metrics 
         if metrics == []: 
-            metrics = ['MAE', 'RMSE', 'MAPE', 'DS']
+            metrics = ['MAE', 'RMSE', 'MAPE', 'DS', 'RMSSE']
         self.metrics_dict = dict(zip(metrics, [None]*len(metrics)))
         self.config_dict = config
     
@@ -86,20 +86,23 @@ class MetricsCls:
         return sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
         
     @staticmethod
-    def MSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=False):
+    def RMSE(y_true, y_pred, *, sample_weight=None, multioutput='uniform_average', squared=False):
+        """
+        squared (bool, optional): If True returns MSE value, if False (default) returns RMSE value.
+        """
         return sklearn.metrics.mean_squared_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput, squared=squared)
     
     @staticmethod
-    def DS(y_true, y_pred, version='normal', **kwargs):
+    def DS(y_true, y_pred, version='standard', **kwargs):
         # check & initialization 
         version = version.lower()
-        assert version in ['normal', 'plateau']
+        assert version in ['standard', 'plateau']
         y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
 
         if version =='plateau': 
-            return MetricsCls._BD_DS(y_true, y_pred, **kwargs)
+            return MetricsCls._DS_plateau(y_true, y_pred, **kwargs)
         
-        assert version == 'normal'
+        assert version == 'standard'
         # matrices case is also valid
         d = np.diff(y_true, axis=0) * np.diff(y_pred, axis=0) > 0
         return 100.0 * d.sum() / len(d.reshape(-1))
@@ -143,7 +146,7 @@ class MetricsCls:
         version = version.lower()
         assert version in ['sklearn', 'selfmade']
         if version == 'sklearn':
-            return sklearn.metrics.mean_absolute_percentage_error(y_true, y_pred, sample_weight, multioutput)
+            return sklearn.metrics.mean_absolute_percentage_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
         elif version == 'selfmade': 
             return MetricsCls._MAPE_selfmade(y_true, y_pred, sample_weight, multioutput)
         
@@ -160,28 +163,36 @@ class MetricsCls:
             return np.average(mape, weights=None)
 
     @staticmethod 
-    def MSSE(y_true, y_pred, y_train=None, sp: int=1, squared=False): 
+    def RMSSE(y_true, y_pred, y_train=None, sp: int=1, squared=False): 
         """
-        Mean Squared Scaled Error (MSSE) with formula from M5: 
+        Root Mean Squared Scaled Error (RMSSE) with formula from M5: 
 
         .. math:: 
-            \frac{
-                \frac{1}{h} \Sum_{t=n+1}^{n+h} (Y_t - \hat{Y_t})^2
-            }{
-                \frac{1}{n-1} \Sum_{t=2}^{n} (Y_t - Y_{t-1})^2
-            } 
+            \sqrt{
+                \frac{
+                    \frac{1}{h} \Sum_{t=n+1}^{n+h} (Y_t - \hat{Y_t})^2
+                }{
+                    \frac{1}{n-1} \Sum_{t=2}^{n} (Y_t - Y_{t-1})^2
+                }
+            }
         
-        Hence, y_true and y_pred should have same length $h$ while y_train can be of length $n$ or None. When y_train is None, we take y_true instead to calculate the denominator part.
-        Stonger version of MSSE can be found in sktime `here <https://www.sktime.org/en/v0.7.0/api_reference/modules/auto_generated/sktime.performance_metrics.forecasting.mean_squared_scaled_error.html>`_. Note that there is no standard definition of RMMSE, I use the def from M5 but there is alternative def, eg., [Theodosiou M. 2011]_.
+        Hence, y_true and y_pred should have same length $h$ while y_train can be 
+        of length $n$ or None. When y_train is None, we take y_true instead to calculate the 
+        denominator part. Stonger version of MSSE can be found in sktime 
+        `here <https://www.sktime.org/en/v0.7.0/api_reference/modules/auto_generated
+        /sktime.performance_metrics.forecasting.mean_squared_scaled_error.html>`_. 
+        Note that there is no standard definition of RMMSE, I use the def from M5 but there is 
+        alternative def, eg., [Theodosiou M. 2011]_.
 
-        .. [Theodosiou M. 2011] Theodosiou, M. (2011). Forecasting monthly and quarterly time series using STL decomposition. International Journal of Forecasting, 27(4), 1178–1195. doi:10.1016/j.ijforecast.2010.11.002
+        .. [Theodosiou M. 2011] Theodosiou, M. (2011). Forecasting monthly and quarterly time series 
+        using STL decomposition. International Journal of Forecasting, 27(4), 1178–1195. 
+        doi:10.1016/j.ijforecast.2010.11.002
 
         Args: 
             y_train (np.array, pd.Series, pd.DataFrame, optional): training data of target feature 
                 of length $n$. If not provided, i.e. defaulted to None, takes y_true as y_train so $n=h$.
             sp (int, optional): seasonality periodicity to create naive forecast based on y_train. 
-            squared (bool, optional): whether or not take squared root at the end of calculation. 
-                Defaults to False. 
+            squared (bool, optional): If True returns MSSE value, if False (default) returns RMSSE value.
 
         Reference: 
             M5 competition guidlines. 
@@ -196,9 +207,9 @@ class MetricsCls:
         EPS = np.finfo(np.float64).eps
 
         # core 
-        numerator = MetricsCls.MSE(y_true, y_pred, squared=False)
-        denominator = MetricsCls.MSE(y_train[sp:], naive_forecast)
-        output = numerator / np.maximum(denominator, EPS)
+        numerator = MetricsCls.RMSE(y_true, y_pred, squared=True)
+        denominator = MetricsCls.RMSE(y_train[sp:], naive_forecast, squared=True)
+        output = np.sqrt( numerator / np.maximum(denominator, EPS) )
         if squared: 
-            output = np.sqrt(output)
+            output = output ** 2
         return output 
