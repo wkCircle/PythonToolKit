@@ -197,11 +197,15 @@ class MetricsCls:
         Reference: 
             M5 competition guidlines. 
             https://github.com/Mcompetitions/M5-methods/blob/master/M5-Competitors-Guide.pdf
+        
         """
         # init 
         y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
         if y_train is None: 
             y_train = np.asarray(y_true.copy())
+        # case no record to calculate
+        if len(y_train) <= sp: 
+            return np.nan 
         # naive forecasting 
         naive_forecast = y_train[:-sp]
         EPS = np.finfo(np.float64).eps
