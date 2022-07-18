@@ -20,11 +20,11 @@ def config_parser(key: str, space: dict):
 
     Example: 
         >>> space = {'RMSE__multiple_weight': 'uniform_average', 
-                     'RMSE__sample_weight': None, 
-                     'MAE__multiple_weight': 'raw_values', 
-                     'MAE__sample_weight': None, }
+        ...          'RMSE__sample_weight': None, 
+        ...          'MAE__multiple_weight': 'raw_values', 
+        ...          'MAE__sample_weight': None, }
         >>> config_parser('RMSE', space)
-        {'multiple_weight': 'uniform_average', 'sample_weight':None}
+        {'multiple_weight': 'uniform_average', 'sample_weight': None}
     """
     # define pattern 
     prefix = f'{key}__\w+'
