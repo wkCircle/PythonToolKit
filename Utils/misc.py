@@ -35,10 +35,13 @@ def config_parser(key: str, space: dict):
     return dict(zip(keys_no_prefix, [space[k] for k in keys] ))
 
 def get_equivalent_days(value: float = 1, unit: str = 'D'): 
+    
     unit = unit.lower() 
     if unit is None: 
         return None 
-    elif re.search('d$|days?', unit, flags=re.IGNORECASE): 
+    
+    output = None 
+    if re.search('d$|days?', unit, flags=re.IGNORECASE): 
         output = value * 1
     elif re.search('w$|w-.+|weeks?', unit, flags=re.IGNORECASE): 
         output = value * 7
@@ -46,7 +49,8 @@ def get_equivalent_days(value: float = 1, unit: str = 'D'):
         output = value * 30.4368
     elif re.search('Q$|quarters?', unit, flags=re.IGNORECASE): 
         output = value * 91.3106
-    print(output, type(output))
+    else: 
+        raise NotImplementedError
     return pd.Timedelta(output, unit='D')
 
 def reduce_mem_usage(df, verbose=True):
