@@ -47,7 +47,6 @@ def create_lag(df, features, lag=[1], droplagna=True):
             print('#lags={} is dropped'.format(lagmin))
         else: 
             raise ValueError('Impossible case where lagmin > lagmax')
-
     return res
 
 def create_lead(df, features: Iterable, lead=[1], dropleadna=True):
@@ -65,7 +64,7 @@ def create_lead(df, features: Iterable, lead=[1], dropleadna=True):
     lag = -np.array(lead)
     return create_lag(df, features, lag=lag, droplagna=dropleadna)
 
-def add_MA(df, features, window, **kwargs):
+def create_MA(df, features, window, **kwargs):
 
     if isinstance(features, str):
         features = [features]
@@ -78,10 +77,9 @@ def add_MA(df, features, window, **kwargs):
         res.columns = [str(s)+f'_ma{w}' for s in features]
         resList.append(res)
     res = pd.concat(resList, axis=1)
-    
-    return pd.concat([df, res], axis=1), res.columns
+    return res
 
-def add_EMA(df, features, alpha, adjust=True, **kwargs):
+def create_EMA(df, features, alpha, adjust=True, **kwargs):
 
     if isinstance(features, str):
         features = [features]
@@ -95,9 +93,9 @@ def add_EMA(df, features, alpha, adjust=True, **kwargs):
         res.columns = [str(s)+'_ema{:g}'.format(a*10) for s in features]
         resList.append(res)
     res = pd.concat(resList, axis=1)
-    return pd.concat([df, res], axis=1), res.columns
+    return res
 
-def add_MS(df, features, window, **kwargs):
+def create_MS(df, features, window, **kwargs):
 
     if isinstance(features, str):
         features = [features]
@@ -112,10 +110,9 @@ def add_MS(df, features, window, **kwargs):
         res.fillna(res.mean(), inplace=True)
         resList.append(res)
     res = pd.concat(resList, axis=1)
-    
-    return pd.concat([df, res], axis=1), res.columns
+    return res
 
-def add_skew(df, features, window, **kwargs): 
+def create_skew(df, features, window, **kwargs): 
     """
     Args:
         df ([type]): [description]
@@ -138,7 +135,30 @@ def add_skew(df, features, window, **kwargs):
         res.fillna(res.mean(), inplace=True)
         resList.append(res)
     res = pd.concat(resList, axis=1)
-    return pd.concat([df, res], axis=1), res.columns
+    return res
+
+def create_fourier(series: pd.Series, freq: float, orders: list):
+    """
+    Generate fourier features from input series. 
+    `Reference`_: https://www.kaggle.com/ryanholbrook/seasonality
+
+    Args: 
+        series (pd.Series): target series to generate fourier features
+        freq (int or float): 
+        orders (list): 
+    
+    Returns: 
+
+    """
+    name = series.name
+    k = 2 * np.pi * series / freq
+    features = {}
+    for order in orders:
+        features.update({
+            f"{name}_ffsin_{freq}_{order}": np.sin(order * k),
+            f"{name}_ffcos_{freq}_{order}": np.cos(order * k),
+        })
+    return pd.DataFrame(features, index=series.index)
 
 def npshift(arr, num, fill_value=np.nan):
     result = np.empty_like(arr)
@@ -161,26 +181,6 @@ def percent_change(data):
     previous_values = data[:-1]
     last_value = data[-1]
     return (last_value - np.mean(previous_values)) / np.mean(previous_values)
-
-
-def fourier_features(index, freq, order):
-    """
-    `Reference`_: https://www.kaggle.com/ryanholbrook/seasonality
-    Example: 
-    >>> # Compute Fourier features to the 4th order (8 new features) for a
-    >>> # series y with daily observations and annual seasonality:
-    >>> # fourier_features(y, freq=365.25, order=4)
-    """
-    time = np.arange(len(index), dtype=np.float32)
-    k = 2 * np.pi * (1 / freq) * time
-    features = {}
-    for i in range(1, order + 1):
-        features.update({
-            f"sin_{freq}_{i}": np.sin(i * k),
-            f"cos_{freq}_{i}": np.cos(i * k),
-        })
-    return pd.DataFrame(features, index=index)
-
 
 def replace_outliers(df, window=7, k=3, method='mean'):
     """
