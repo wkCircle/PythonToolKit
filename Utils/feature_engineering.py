@@ -148,7 +148,8 @@ def create_fourier(series: pd.Series, freq: float, orders: list):
         orders (list): 
     
     Returns: 
-
+        pd.DataFrame: a dataframe containing 2*len(orders) columns of 
+        various fourier features and same index as the input series.
     """
     name = series.name
     k = 2 * np.pi * series / freq
@@ -314,93 +315,78 @@ class DataMelter():
         return pd.concat([augmented_frame, frame2], axis=1)
     
     @staticmethod
-    def melt_features(frame: pd.DataFrame, id_cols=None, input_cols=None, 
-                  input2dummy_value={}, dummy_name: str=None, value_name: str=None, ignore_index=False, concat_back=False): 
+    def melt_features(frame: pd.DataFrame, id_vars=None, inputcols=None, 
+                  rename_inputcols: dict={}, var_name: str=None, value_name: str=None, ignore_index=False, concat_back=False): 
         """
         Unpivot a dataframe wide to long format. This function is an extension of ``pd.melt`` that provides additionally the mapper for input column names to dummy values.
 
-        :param frame: the input dataframe.
-        :type frame: pd.DataFrame
-        :param id_cols: column(s) to use as identifier variables, defaults to None
-        :type id_cols: [tuple, list, or ndarray], optional
-        :param input_cols: [Columns to unpivot. If not specified, used all columns that are not set as ``id_vars``], defaults to None
-        :type input_cols: [tuple, list, or ndarray], optional
-        :param input2dummy_value: [Mapper that convert ``input_cols`` names to dummy values under the column ``dummy_name``], defaults to {}
-        :type input2dummy_value: dict, optional
-        :param dummy_name: [Name to use for the `variable` column. If None it uses ``frame.columns.name`` or `variable`.], defaults to None
-        :type dummy_name: str, optional
-        :param value_name: [Name to use for the ‘value’ column.], defaults to None
-        :type value_name: str, optional
-        :param ignore_index: [whether to ignore index when melting the data], defaults to False.
-        :type ignore_index: bool, optional
-        :param concat_back: [whether to concat the melted features back to original dataframe], defaults to False.
-        :type concat_back: bool, optional
-        :return: [Unpivoted DataFrame.]
-        :rtype: [pd.DataFrame]
+        Args:
+            frame (pd.DataFrame): target dataframe with some columns to be melted.
+            id_vars (Iterable[str], optional): column(s) to use as identifier variables. Defaults to None.
+            inputcols (Iterable[str], optional): Columns to melt. If not specified, used all columns that are not set as ``id_vars``. Defaults to None.
+            rename_inputcols (dict, optional): Mapper that converts ``input_cols`` names to dummy values under the column ``var_name``. Defaults to {}.
+            var_name (str, optional): Name for the melted variable column. If None, it uses ``frame.columns.name`` or `variable`.. Defaults to None.
+            value_name (str, optional): Name for the melted value column.. Defaults to None.
+            ignore_index (bool, optional): whether to ignore index when melting the data. Defaults to False.
+            concat_back (bool, optional): whether to concat the melted features back to original dataframe. Defaults to False.
+
+        Returns:
+            pd.DataFrame: the melted dataframe
         """
 
-        check = pd.Index(input_cols).isin(frame.columns)
-        assert check.all(), f"Cannot find columns {input_cols[~check]} in frame."
+        check = pd.Index(inputcols).isin(frame.columns)
+        assert check.all(), f"Cannot find columns {inputcols[~check]} in frame."
         # prepare 
-        value_vars = input2dummy_value.values()
+        value_vars = rename_inputcols.values()
         if len(value_vars) == 0: 
-            value_vars = input_cols 
+            value_vars = inputcols 
         # output 
         res = frame.rename(
-            columns=input2dummy_value
+            columns=rename_inputcols
         ).melt(
-            id_vars=id_cols, value_vars=value_vars, 
-            var_name=dummy_name, value_name=value_name, 
+            id_vars=id_vars, value_vars=value_vars, 
+            var_name=var_name, value_name=value_name, 
             ignore_index=ignore_index
         )
 
         # concat back if True 
         if concat_back: 
-            res = DataMelter._concat_back(frame.drop(columns=input_cols), res, )
+            res = DataMelter._concat_back(frame.drop(columns=inputcols), res, )
             
         return res 
 
     @staticmethod
     def melt_features_regex(frame: pd.DataFrame, features: Iterable[str], 
-        dummy_value: Iterable[str]=None, dummy_name: Iterable[str]=None, 
+        rename_features: Iterable[str]=None, var_name: Iterable[str]=None, 
         value_name: Iterable[str]=None, ignore_index=False):
         """
         This method is similar to ``melt_features`` but can melt different group of features via regex.
 
-        :param frame: [the input dataframe that already contains the lead features]
-        :type frame: pd.DataFrame
-        :param features: [the target featues regex list for prediction task]
-        :type features: Iterable[str].
+        Args:
+            frame (pd.DataFrame): the input dataframe that already contains the lead features.
+            features (Iterable[str]): the target featues regex list for prediction task.
+            dummy_value (Iterable[str], optional): . Defaults to None.
+            var_name (Iterable[str], optional): Name for the melted variable column which serves as a dummy variable. Defaults to None.
+            value_name (Iterable[str], optional): Name for melted value column. Defaults to None.
+            ignore_index (bool, optional): _description_. Defaults to False.
 
-        :param targets_suffix_regex: [the suffix name regex pattern for targets_stem]
-        :type targets_suffix_regex: str, optional
-
-        :param dummy_name:
-        :type dummy_name: Iterable[str], defaults to None. 
-
-        :param value_name:
-        :type value_name: Iterable[str], defaults to None. 
-
-        :param ignore_index:
-        :type ignore_index: bool, defaults to False. 
-
-        :return: [description]
-        :rtype: [type]
+        Returns:
+            pd.DataFrame: the melted dataframe.
         """
         # initial check 
         assert not isinstance(features, str), "targets_stem should be Iterable, not str."
         
-        if isinstance(dummy_name, str) or dummy_name is None: 
-            dummy_name = [dummy_name] * len(features)
+        if isinstance(var_name, str) or var_name is None: 
+            var_name = [var_name] * len(features)
         else:
-            assert len(dummy_name) == len(features)
+            assert len(var_name) == len(features)
 
-        if dummy_value is None: 
-            dummy_value = features * len(features)
-        elif isinstance(dummy_value, str):
-            dummy_value = [dummy_value] * len(features)
+        if rename_features is None: 
+            rename_features = features * len(features)
+        elif isinstance(rename_features, str):
+            rename_features = [rename_features] * len(features)
         else: 
-            assert len(dummy_value) == len(features)
+            assert len(rename_features) == len(features)
 
         if isinstance(value_name, str): 
             value_name = [value_name] * len(features)
@@ -414,11 +400,12 @@ class DataMelter():
         collector = []
         for i, feature_pattern in enumerate(features): 
             cols = frame.filter(regex=feature_pattern).columns
-            tomap = cols.str.extract(f"({dummy_value[i]})", expand=False)
+            tomap = cols.str.extract(f"({rename_features[i]})", expand=False)
             long_df = DataMelter.melt_features(
-                frame, input_cols=cols, 
-                input2dummy_value=dict(zip(cols, tomap)), 
-                dummy_name=dummy_name[i], value_name=value_name[i]
+                frame, inputcols=cols, 
+                rename_inputcols=dict(zip(cols, tomap)), 
+                var_name=var_name[i], value_name=value_name[i], 
+                ignore_index=ignore_index
             )
             collector.append(long_df)
         
@@ -426,5 +413,3 @@ class DataMelter():
         output = pd.concat(collector, axis=1)
         uniq_cols = output.columns.drop_duplicates()
         return output , uniq_cols
-
-# %%
