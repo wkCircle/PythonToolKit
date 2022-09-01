@@ -17,10 +17,10 @@ class MetricsCls:
         >>> obj=MetricsCls(config={'MAPE__version':'sklearn'})
         >>> x, y=[0.025,0.5,0.5,0], [2,0.5,0, 5]
         >>> print(obj.score(x,y))
-        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': 5629499534213140.0, 'DS': 0.0}
+        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': 5629499534213140.0, 'DS': 0.0, 'RMSSE': 6.7799}
         >>> obj=MetricsCls(config={'MAPE__version':'selfmade'})
         >>> print(obj.score(x,y))
-        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': inf, 'DS': 0.0}
+        {'MAE': 1.8688, 'RMSE': 2.6996, 'MAPE': inf, 'DS': 0.0, 'RMSSE': 6.7799}
     """
 
     def __init__(self, metrics: list = [], config: dict = {}):
