@@ -131,6 +131,10 @@ class MetricsCls:
 
         # define common variables
         y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
+        if y_true.ndim == 1:
+            y_true = y_true.reshape((-1, 1))
+        if y_pred.ndim == 1:
+            y_pred = y_pred.reshape((-1, 1))
         true_diff = np.diff(y_true, axis=0)
         pred_diff = np.diff(y_pred, axis=0)
 

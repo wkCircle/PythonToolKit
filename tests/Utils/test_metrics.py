@@ -3,7 +3,7 @@ from Utils.metrics import MetricsCls
 
 
 class TestMetricsCls:
-    def assert_dict_equal(self, result, expected):
+    def assert_allclose_dict(self, result, expected):
         """extended version of == to check dict equality also on missing values."""
         assert (
             result.keys() == expected.keys()
@@ -29,7 +29,7 @@ class TestMetricsCls:
         expected = {"MAE": 0.0, "RMSE": 0.0, "MAPE": 0.0, "DS": 100.0, "RMSSE": 0.0}
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
         # case 2: multioutput = raw_values
         expected = {
@@ -41,7 +41,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
     def test_perfect_2d(self):
         y_true = (np.zeros((10, 10)) + np.arange(10)).T
@@ -52,7 +52,7 @@ class TestMetricsCls:
         expected = {"MAE": 0.0, "RMSE": 0.0, "MAPE": 0.0, "DS": 100.0, "RMSSE": 0.0}
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
         # case 2: multioutput = raw_values
         expected = {
@@ -66,7 +66,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
     def test_extreme_1d(self):
         y_true = np.array([0.0, 0.0])
@@ -83,7 +83,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
         # case 2: multioutput = raw_values
         expected = {
@@ -95,7 +95,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
     def test_extreme_2d_singlerow(self):
         y_true = np.zeros((1, 3))
@@ -112,7 +112,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
         # case 2: multioutput = raw_values
         expected = {
@@ -124,7 +124,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
     def test_extreme_2d_singlcol(self):
         y_true = np.zeros((3, 1))
@@ -140,7 +140,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
         # case 2: multioutput = raw_values
         expected = {
             "MAE": np.array([0.1]),
@@ -151,10 +151,36 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
     def test_multioutput_1d(self):
-        pass
+        y_true = np.arange(1, 6)
+        y_pred = y_true - 10
+        evaluator = MetricsCls()
+
+        # case 1: multioutput = uniform_average (default)
+        expected = {
+            "MAE": 10.0,
+            "RMSE": 10.0,
+            "MAPE": 4.5667,
+            "DS": 100.0,
+            "RMSSE": 10.0,
+        }
+        self.set_multioutput(evaluator, "uniform_average")
+        out = evaluator.score(y_true, y_pred)
+        self.assert_allclose_dict(out, expected)
+
+        # case 2: multioutput = raw_values
+        expected = {
+            "MAE": np.array([10.0]),
+            "RMSE": np.array([10.0]),
+            "MAPE": np.array([4.5667]),
+            "DS": np.array([100.0]),
+            "RMSSE": np.array([10.0]),
+        }
+        self.set_multioutput(evaluator, "raw_values")
+        out = evaluator.score(y_true, y_pred)
+        self.assert_allclose_dict(out, expected)
 
     def test_multioutput_2d(self):
         y_true = np.zeros((5, 3)) + np.arange(1, 6).reshape(-1, 1)
@@ -171,7 +197,7 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "uniform_average")
         out = evaluator.score(y_true, y_pred)
-        self.assert_dict_equal(out, expected)
+        self.assert_allclose_dict(out, expected)
 
         # case 2: multioutput = raw_values
         expected = {
@@ -183,3 +209,4 @@ class TestMetricsCls:
         }
         self.set_multioutput(evaluator, "raw_values")
         out = evaluator.score(y_true, y_pred)
+        self.assert_allclose_dict(out, expected)
