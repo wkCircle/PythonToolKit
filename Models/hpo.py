@@ -1,12 +1,11 @@
 from typing import Callable
 import numpy as np 
 import pandas as pd 
-from functools import partial
+import functools as ft 
 
 import hyperopt
 from hyperopt.pyll import scope as ho_scope
 from hyperopt.pyll.stochastic import sample as ho_sample
-from sklearn import multioutput
 
 from sklearn.pipeline import Pipeline 
 from sklearn.preprocessing import StandardScaler
@@ -17,10 +16,15 @@ from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 # self module
 from Utils.misc import config_parser
 
-class HyperOpt:
+class HPO:
     def __init__(self, space):
         self.space = space
     
+    # TODO: should remove objective out of HPO class 
+    # and modify get_model: it is bad to instantiate models in get_model
+    # since we have to import a lot of model packages in the file. 
+    # better way: instantiate models already in main.py and here get_model
+    # should only modfiy hyperparameters of the already constructed estimator.
     @staticmethod
     def get_model(hps, estimator, multiout_wrapper=True):
         # parse dict 
@@ -48,7 +52,7 @@ class HyperOpt:
 
     @staticmethod 
     def objective(hps, estimator: Callable, X, y, cv, scoring, multiout_wrapper=True):
-        model = HyperOpt.get_model(hps, estimator, multiout_wrapper)
+        model = HPO.get_model(hps, estimator, multiout_wrapper)
         cv_res = cross_val_score(model, X, y, cv=cv, 
                                 scoring=scoring, n_jobs=-1)
         return -cv_res.mean() # either min(), or mean()... #TODO: LSTM, wrap into class of all funcs here.
@@ -61,8 +65,8 @@ class HyperOpt:
             cv = TimeSeriesSplit(n_splits=5)
 
         best_pt = hyperopt.fmin(
-            fn=partial(
-                HyperOpt.objective, estimator=estimator, 
+            fn=ft.partial(
+                HPO.objective, estimator=estimator, 
                 X=X, y=y, cv=cv, scoring=scoring, multiout_wrapper=multiout_wrapper
             ), 
             space=self.space, 
