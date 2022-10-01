@@ -269,6 +269,3 @@ class MetricsCls:
             output = output**2
         return output
 
-
-
-# commit 2 
