@@ -4,6 +4,30 @@ import numpy as np
 import pandas as pd
 import re
 
+def dist_with_miss(a,b,l=0.0):
+    """
+    Distance function that penalizes the number of missing values in either vector 
+    via argument `l`.
+
+    Args:
+        a (array-like): array a 
+        b (array-like): array b
+        l (float, optional): penalize term. Defaults to 0.0.
+
+    Returns:
+        float: distance between a and b taking the number of missing values in either 
+        vectors into account. 
+
+    References: 
+        Sparsity Aware KNN Imputer 
+        https://towardsdatascience.com/xgboost-is-not-black-magic-56ca013144b4
+        https://github.com/massibelloni-medium/knnmv
+    """
+    if(len(a) != len(b)):
+        return np.inf
+    nonms_msk = ~ (np.isnan(a) | np.isnan(b))
+    dist = np.sum((np.abs(a-b)[nonms_msk])) + l * (a[~nonms_msk].shape[0])
+    return dist
 
 class MetricsCls:
     """
