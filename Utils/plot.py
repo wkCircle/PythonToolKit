@@ -327,11 +327,12 @@ def _lagplot(x, y=None, lag=1, standardize=False, ax=None, **kwargs):
     return ax
 
 
-def lags_plot(x, y=None, lags=6, nrows=1, lagplot_kwargs={}, **kwargs):
+def lags_plot(x, y=None, lags=6, lagplot_kwargs={}, **kwargs):
     """
     `Ref`_: https://www.kaggle.com/ryanholbrook/time-series-as-features
     """
-    kwargs.setdefault('nrows', nrows)
+    kwargs.setdefault('nrows', 1)
+    nrows = kwargs['nrows']
     kwargs.setdefault('ncols', np.ceil(lags / nrows).astype(int))
     kwargs.setdefault('figsize', (kwargs['ncols'] * 2, nrows * 2 + 0.5))
     fig, axs = plt.subplots(sharex=True, sharey=True, squeeze=False, **kwargs)
