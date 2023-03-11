@@ -121,10 +121,10 @@ def acpac_plot(data, features: list=None, lags: int=None, figsize: tuple=(10,5),
         features = data.columns 
 
     for i, col in enumerate(features):
-        fig, ax = plt.subplots(1,2,figsize=figsize)
-        tsaplots.plot_acf(data[col], lags=lags, title='AC: ' + data[col].name, ax=ax[0], **kwargs.get("acf", {}))
-        tsaplots.plot_pacf(data[col], lags=lags, title='PAC: ' + data[col].name, ax=ax[1], **kwargs.get("pacf", {}))
-    
+        fig, axes = plt.subplots(1,2,figsize=figsize)
+        tsaplots.plot_acf(data[col], lags=lags, title='AC: ' + data[col].name, ax=axes[0], **kwargs.get("acf", {}))
+        tsaplots.plot_pacf(data[col], lags=lags, title='PAC: ' + data[col].name, ax=axes[1], **kwargs.get("pacf", {}))
+    return fig, axes 
         
 def residac_plot(model, cols=None, figsize=(16, 8), ylim=(-.3, .3)):
     """
